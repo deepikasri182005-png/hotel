@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Maya — PropBot AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d0d12;
+            --surface: rgba(255,255,255,0.05);
+            --border: rgba(255,255,255,0.09);
+            --accent: #8b5cf6;
+            --accent-dim: rgba(139,92,246,0.18);
+            --green: #10b981;
+            --red: #ef4444;
+            --amber: #f59e0b;
+            --text: #f1f1f5;
+            --muted: #9ca3af;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+        html, body { height:100%; font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); overflow:hidden; }
+
+        .app { display:flex; flex-direction:column; height:100%; max-width:480px; margin:0 auto; }
+
+        /* ── Header ── */
+        header {
+            display:flex; align-items:center; gap:12px;
+            padding:14px 18px;
+            border-bottom:1px solid var(--border);
+            flex-shrink:0;
+        }
+        .avatar {
+            width:38px; height:38px; border-radius:50%;
+            background:linear-gradient(135deg,#4c1d95,#7c3aed);
+            display:flex; align-items:center; justify-content:center;
+            font-size:1.1rem; flex-shrink:0;
+        }
+        .hinfo h1 { font-size:0.92rem; font-weight:600; }
+        .hinfo p  { font-size:0.7rem; color:var(--muted); }
+        .online-dot {
+            margin-left:auto; width:8px; height:8px; border-radius:50%;
+            background:var(--green); box-shadow:0 0 6px var(--green);
+            animation:blink 2s infinite;
+        }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+        /* ── Messages ── */
+        #messages {
+            flex:1; overflow-y:auto; padding:16px;
+            display:flex; flex-direction:column; gap:10px;
+            overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+            scrollbar-width:none;
+        }
+        #messages::-webkit-scrollbar { display:none; }
+
+        .bubble { max-width:84%; padding:10px 14px; border-radius:16px; font-size:0.88rem; line-height:1.55; }
+        .bubble.user      { align-self:flex-end; background:var(--accent); color:#fff; border-bottom-right-radius:4px; }
+        .bubble.assistant { align-self:flex-start; background:var(--surface); border:1px solid var(--border); border-bottom-left-radius:4px; }
+        .bubble.partial   { align-self:flex-start; background:transparent; border:1px dashed var(--border); font-style:italic; opacity:.6; border-bottom-left-radius:4px; }
+        .lead-banner {
+            align-self:stretch; padding:10px 14px; border-radius:12px;
+            background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.3);
+            font-size:0.8rem; color:#6ee7b7;
+        }
+        .empty-state { margin:auto; text-align:center; color:var(--muted); padding:36px 20px; }
+        .empty-state .emoji { font-size:2.4rem; margin-bottom:10px; }
+        .empty-state p { font-size:0.83rem; line-height:1.65; }
+        .empty-state em { color:rgba(167,139,250,.95); font-style:normal; }
+
+        /* ── Typing dots ── */
+        .typing-indicator { display:inline-flex; align-items:center; gap:5px; padding:6px 2px; }
+        .typing-indicator span {
+            width:8px; height:8px; border-radius:50%;
+            background:var(--accent); display:inline-block;
+            animation:typingBounce 1.2s infinite ease-in-out;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay:.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay:.4s; }
+        @keyframes typingBounce { 0%,80%,100%{transform:translateY(0);opacity:.4} 40%{transform:translateY(-6px);opacity:1} }
+
+        /* Inline typing bubble (inside messages) */
+        .bubble.typing { align-self:flex-start; background:var(--surface); border:1px solid var(--border); border-bottom-left-radius:4px; padding:12px 16px; }
+
+        /* ── Quick reply chips ── */
+        #quick-replies {
+            display:none;
+            flex-shrink:0;
+            padding:8px 14px 4px;
+            gap:8px;
+            flex-wrap:wrap;
+            align-items:center;
+        }
+        .qr-chip {
+            padding:7px 16px;
+            border-radius:20px;
+            border:1px solid var(--accent);
+            background:var(--accent-dim);
+            color:var(--accent);
+            font-size:0.82rem;
+            font-weight:500;
+            cursor:pointer;
+            transition:background .15s, color .15s;
+            white-space:nowrap;
+        }
+        .qr-chip:hover { background:var(--accent); color:#fff; }
+        .qr-chip.dont-know {
+            background:transparent;
+            border-color:var(--border);
+            color:var(--muted);
+            font-size:0.78rem;
+        }
+        .qr-chip.dont-know:hover { border-color:var(--muted); color:var(--text); }
+
+        /* ── Filter badge in header ── */
+        #filter-badge {
+            display:none; margin-left:auto;
+            align-items:center; gap:6px;
+        }
+        #filter-badge.visible { display:flex; }
+        .badge-btn {
+            display:flex; align-items:center; gap:5px;
+            padding:5px 10px; border-radius:20px;
+            border:1px solid rgba(139,92,246,.4);
+            background:var(--accent-dim); color:#c4b5fd;
+            font-size:0.72rem; font-weight:500; cursor:pointer;
+            font-family:inherit; transition:background .15s;
+        }
+        .badge-btn:hover { background:rgba(139,92,246,.3); }
+        .badge-count {
+            background:var(--accent); color:#fff;
+            border-radius:10px; padding:1px 6px;
+            font-size:0.65rem; font-weight:600;
+        }
+
+        /* ── Filter side drawer ── */
+        #filter-drawer {
+            position:fixed; top:0; right:-280px; width:260px; height:100%;
+            background:#16161e; border-left:1px solid var(--border);
+            padding:20px 16px; z-index:100;
+            transition:right .25s ease; overflow-y:auto;
+        }
+        #filter-drawer.open { right:0; }
+        #filter-overlay {
+            display:none; position:fixed; inset:0;
+            background:rgba(0,0,0,.5); z-index:99;
+        }
+        #filter-overlay.open { display:block; }
+        .drawer-header {
+            display:flex; align-items:center; justify-content:space-between;
+            margin-bottom:14px;
+        }
+        .drawer-header h3 { font-size:0.85rem; font-weight:600; color:var(--text); }
+        .drawer-close { background:none; border:none; color:var(--muted); cursor:pointer; font-size:1.1rem; }
+        .drawer-chips { display:flex; flex-direction:column; gap:8px; }
+        .filter-chip {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:7px 10px; border-radius:10px;
+            background:var(--accent-dim); border:1px solid rgba(139,92,246,.3);
+            font-size:0.78rem; color:#c4b5fd;
+        }
+        .chip-label { font-weight:500; }
+        .chip-remove {
+            cursor:pointer; opacity:.7; font-size:0.8rem; padding:0 2px;
+            background:none; border:none; color:#c4b5fd;
+        }
+        .chip-remove:hover { opacity:1; color:var(--red); }
+        .fresh-btn {
+            width:100%; margin-top:14px; padding:8px; border-radius:10px;
+            border:1px solid rgba(239,68,68,.35); background:rgba(239,68,68,.08);
+            color:#fca5a5; font-size:0.78rem; cursor:pointer; font-family:inherit;
+            transition:background .15s; text-align:center;
+        }
+        .fresh-btn:hover { background:rgba(239,68,68,.15); }
+
+        /* ── Querying indicator ── */
+        .querying-bubble {
+            align-self:flex-start;
+            display:flex; align-items:center; gap:8px;
+            padding:10px 14px; border-radius:16px; border-bottom-left-radius:4px;
+            background:rgba(139,92,246,.1); border:1px solid rgba(139,92,246,.25);
+            font-size:0.82rem; color:#c4b5fd; font-style:italic;
+        }
+        .search-spin {
+            width:14px; height:14px; border:2px solid rgba(139,92,246,.3);
+            border-top-color:var(--accent); border-radius:50%;
+            animation:spin .7s linear infinite; flex-shrink:0;
+        }
+        @keyframes spin { to { transform:rotate(360deg); } }
+
+        /* ── Property cards ── */
+        .prop-cards-wrap { align-self:stretch; display:flex; flex-direction:column; gap:10px; }
+        .prop-card {
+            border-radius:14px; overflow:hidden;
+            border:1px solid var(--border);
+            background:#1a1a24;
+        }
+        .prop-card-banner {
+            padding:10px 14px 8px;
+            background:linear-gradient(135deg,#3b1d8a,#5b21b6);
+        }
+        .prop-card-banner.villa { background:linear-gradient(135deg,#78350f,#b45309); }
+        .prop-card-title { font-size:0.88rem; font-weight:600; color:#fff; }
+        .prop-card-sub { font-size:0.72rem; color:rgba(255,255,255,.7); margin-top:2px; }
+        .prop-card-body { padding:10px 14px; }
+        .prop-card-price { font-size:1rem; font-weight:700; color:#a78bfa; margin-bottom:6px; }
+        .prop-card-price.villa { color:#fbbf24; }
+        .prop-card-meta { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px; }
+        .prop-meta-pill {
+            padding:3px 8px; border-radius:8px;
+            background:rgba(255,255,255,.06); border:1px solid var(--border);
+            font-size:0.68rem; color:var(--muted);
+        }
+        .prop-amenities { display:flex; flex-wrap:wrap; gap:4px; }
+        .prop-amenity {
+            padding:2px 7px; border-radius:6px;
+            background:rgba(139,92,246,.12); border:1px solid rgba(139,92,246,.2);
+            font-size:0.65rem; color:#a78bfa;
+        }
+        .prop-card-footer {
+            padding:8px 14px 10px;
+            border-top:1px solid var(--border);
+            font-size:0.7rem; color:var(--muted);
+            display:flex; align-items:center; justify-content:space-between;
+        }
+        .rtm-badge {
+            padding:2px 7px; border-radius:6px; font-size:0.65rem;
+            background:rgba(16,185,129,.12); border:1px solid rgba(16,185,129,.25);
+            color:#6ee7b7;
+        }
+        .uc-badge {
+            padding:2px 7px; border-radius:6px; font-size:0.65rem;
+            background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.25);
+            color:#fcd34d;
+        }
+
+        /* ── Footer ── */
+        footer { padding:10px 14px 18px; border-top:1px solid var(--border); flex-shrink:0; }
+        .input-row { display:flex; gap:8px; align-items:center; margin-bottom:14px; }
+        #chat-text-input {
+            flex:1; padding:11px 14px; border-radius:12px;
+            border:1px solid var(--border); background:var(--surface);
+            color:var(--text); font-size:0.88rem; font-family:inherit;
+            outline:none; -webkit-appearance:none; transition:border-color .2s;
+        }
+        #chat-text-input:focus { border-color:rgba(139,92,246,.5); }
+        #chat-text-input::placeholder { color:var(--muted); }
+        .send-btn {
+            width:42px; height:42px; border-radius:12px; border:none;
+            background:var(--accent); color:#fff; cursor:pointer;
+            display:flex; align-items:center; justify-content:center;
+            flex-shrink:0; transition:background .2s,transform .1s;
+        }
+        .send-btn:active { transform:scale(.92); }
+
+        /* ── Voice button ── */
+        .voice-area { display:flex; flex-direction:column; align-items:center; gap:8px; }
+        #voice-btn {
+            width:68px; height:68px; border-radius:50%; border:none;
+            background:linear-gradient(135deg,#5b21b6,#8b5cf6); color:#fff;
+            cursor:pointer; display:flex; align-items:center; justify-content:center;
+            box-shadow:0 4px 20px rgba(139,92,246,.35);
+            transition:transform .15s,box-shadow .15s;
+        }
+        #voice-btn:active { transform:scale(.91); }
+        #voice-btn.recording {
+            background:linear-gradient(135deg,#991b1b,#ef4444);
+            box-shadow:0 4px 24px rgba(239,68,68,.45);
+            animation:ring 1.5s infinite;
+        }
+        @keyframes ring {
+            0%   { box-shadow:0 0 0 0   rgba(239,68,68,.5); }
+            70%  { box-shadow:0 0 0 14px rgba(239,68,68,0);  }
+            100% { box-shadow:0 0 0 0   rgba(239,68,68,0);  }
+        }
+        .voice-label { font-size:0.7rem; color:var(--muted); letter-spacing:.04em; }
+
+        /* ── Mic bars ── */
+        .mic-viz { display:none; align-items:center; gap:3px; height:18px; }
+        .mic-viz.active { display:flex; }
+        .bar { width:3px; border-radius:2px; background:#a78bfa; animation:bars .8s ease-in-out infinite; }
+        .bar:nth-child(1){animation-delay:0s;height:6px}
+        .bar:nth-child(2){animation-delay:.15s;height:12px}
+        .bar:nth-child(3){animation-delay:.3s;height:18px}
+        .bar:nth-child(4){animation-delay:.15s;height:12px}
+        .bar:nth-child(5){animation-delay:0s;height:6px}
+        @keyframes bars { 0%,100%{transform:scaleY(.4);opacity:.5} 50%{transform:scaleY(1);opacity:1} }
+
+        @media (max-width:360px) {
+            #voice-btn { width:60px; height:60px; }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+
+    <header>
+        <div class="avatar">🤖</div>
+        <div class="hinfo">
+            <h1>Maya</h1>
+            <p>PropBot AI · Chennai Properties</p>
+        </div>
+        <div class="online-dot" style="margin-left:auto;"></div>
+        <div id="filter-badge" onclick="openDrawer()" style="margin-left:10px;">
+            <button class="badge-btn">
+                🔍 Filters <span class="badge-count" id="badge-count">0</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Filter side drawer -->
+    <div id="filter-overlay" onclick="closeDrawer()"></div>
+    <div id="filter-drawer">
+        <div class="drawer-header">
+            <h3>Active Filters</h3>
+            <button class="drawer-close" onclick="closeDrawer()">✕</button>
+        </div>
+        <div class="drawer-chips" id="drawer-chips"></div>
+        <button class="fresh-btn" onclick="closeDrawer(); resetQuery()">↺ Fresh search</button>
+    </div>
+
+    <div id="messages">
+        <div class="empty-state" id="empty-state">
+            <div class="typing-indicator" id="typing-dots">
+                <span></span><span></span><span></span>
+            </div>
+            <p style="margin-top:10px;font-size:0.78rem;">Maya is connecting…</p>
+        </div>
+    </div>
+
+    <!-- Quick reply chips — shown after Maya asks a multiple-choice question -->
+    <div id="quick-replies"></div>
+
+    <footer>
+        <div class="input-row">
+            <input id="chat-text-input" type="text"
+                placeholder="Ask about properties..."
+                onkeydown="if(event.key==='Enter') sendText()"
+                autocomplete="off" autocorrect="off" />
+            <button class="send-btn" onclick="sendText()">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="22" y1="2" x2="11" y2="13"/>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="voice-area">
+            <div class="mic-viz" id="mic-viz">
+                <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                <div class="bar"></div><div class="bar"></div>
+            </div>
+            <button id="voice-btn" onclick="toggleVoice()">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/>
+                    <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+            </button>
+            <span class="voice-label" id="voice-label">Tap to speak</span>
+        </div>
+    </footer>
+</div>
+
+<script>
+// ── Filter labels ────────────────────────────────────────────────────────────
+const FILTER_LABELS = {
+    location: "Location", property_type: "Type", max_price: "Budget",
+    min_sqft: "Min sqft", bhk: "BHK", facing: "Facing",
+    is_ready_to_move: "Ready to Move",
+    needs_lift: "Lift", needs_kids_pool: "Kids Pool", needs_adult_pool: "Adult Pool",
+    needs_gym: "Gym", needs_play_area: "Play Area", needs_parking: "Parking",
+    needs_pet_friendly: "Pet Friendly", needs_vastu: "Vastu",
+    needs_security: "Security", needs_power_backup: "Power Backup",
+    needs_clubhouse: "Clubhouse"
+};
+
+function filterValue(k, v) {
+    if (k === "max_price") {
+        if (v >= 10000000) return "₹" + (v/10000000).toFixed(1) + " Cr";
+        if (v >= 100000)   return "₹" + (v/100000).toFixed(0) + " L";
+    }
+    if (k === "is_ready_to_move") return v ? "Ready to Move" : "Under Const.";
+    if (typeof v === "boolean")   return "";   // label alone is enough
+    return String(v);
+}
+
+// ── Filter drawer ────────────────────────────────────────────────────────────
+let activeFilters = {};
+
+function openDrawer()  { document.getElementById("filter-drawer").classList.add("open"); document.getElementById("filter-overlay").classList.add("open"); }
+function closeDrawer() { document.getElementById("filter-drawer").classList.remove("open"); document.getElementById("filter-overlay").classList.remove("open"); }
+
+function renderFilters(data) {
+    activeFilters = data || {};
+    const keys = Object.keys(activeFilters).filter(k => activeFilters[k] !== null && activeFilters[k] !== undefined);
+    const badge = document.getElementById("filter-badge");
+    const count = document.getElementById("badge-count");
+    const chips = document.getElementById("drawer-chips");
+
+    if (!keys.length) { badge.classList.remove("visible"); chips.innerHTML = ""; return; }
+
+    badge.classList.add("visible");
+    count.textContent = keys.length;
+    chips.innerHTML = "";
+    keys.forEach(k => {
+        const label = FILTER_LABELS[k] || k;
+        const val   = filterValue(k, activeFilters[k]);
+        const chip  = document.createElement("div");
+        chip.className = "filter-chip";
+        chip.innerHTML = `<span class="chip-label">${label}${val ? ": " + val : ""}</span>
+            <button class="chip-remove" onclick="removeFilter('${k}')">✕</button>`;
+        chips.appendChild(chip);
+    });
+}
+
+// ── WebSocket actions ────────────────────────────────────────────────────────
+function removeFilter(field) {
+    closeDrawer();
+    if (chatWs && chatWs.readyState === WebSocket.OPEN)
+        chatWs.send(JSON.stringify({ event: "remove_filter", field }));
+}
+
+function resetQuery() {
+    if (chatWs && chatWs.readyState === WebSocket.OPEN)
+        chatWs.send(JSON.stringify({ event: "reset_query" }));
+}
+
+// ── Querying indicator ────────────────────────────────────────────────────────
+let queryingBubble = null;
+function showQuerying() {
+    hideTyping();
+    if (queryingBubble) return;
+    queryingBubble = document.createElement("div");
+    queryingBubble.className = "querying-bubble";
+    queryingBubble.innerHTML = '<div class="search-spin"></div> Finding the best matches for you…';
+    messagesDiv.appendChild(queryingBubble);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+function hideQuerying() {
+    if (queryingBubble) { queryingBubble.remove(); queryingBubble = null; }
+}
+
+// ── Property cards ────────────────────────────────────────────────────────────
+function formatPrice(p) {
+    if (p >= 10000000) return "₹" + (p/10000000).toFixed(1) + " Cr";
+    if (p >= 100000)   return "₹" + Math.round(p/100000) + "L";
+    return "₹" + p.toLocaleString();
+}
+
+function renderPropertyCards(cards) {
+    hideQuerying();
+    clearEmpty();
+    if (partialBubble) { partialBubble.remove(); partialBubble = null; }
+
+    const wrap = document.createElement("div");
+    wrap.className = "prop-cards-wrap";
+
+    cards.forEach(p => {
+        const isVilla = p.type === "villa";
+        const card = document.createElement("div");
+        card.className = "prop-card";
+        card.innerHTML = `
+            <div class="prop-card-banner ${isVilla ? 'villa' : ''}">
+                <div class="prop-card-title">${p.bhk}BHK ${p.type.charAt(0).toUpperCase()+p.type.slice(1)} · ${p.location}</div>
+                <div class="prop-card-sub">${p.facing ? p.facing.charAt(0).toUpperCase()+p.facing.slice(1)+'-facing · ' : ''}${p.floor ? 'Floor ' + p.floor + '/' + p.total_floors : ''}</div>
+            </div>
+            <div class="prop-card-body">
+                <div class="prop-card-price ${isVilla ? 'villa' : ''}">${formatPrice(p.price)}</div>
+                <div class="prop-card-meta">
+                    <span class="prop-meta-pill">${p.sqft.toLocaleString()} sqft</span>
+                    ${p.amenities.map(a => `<span class="prop-amenity">${a}</span>`).join('')}
+                </div>
+            </div>
+            <div class="prop-card-footer">
+                <span>${p.contact}</span>
+                <span class="${p.is_ready_to_move ? 'rtm-badge' : 'uc-badge'}">${p.is_ready_to_move ? '✓ Ready to Move' : '🏗 Under Construction'}</span>
+            </div>`;
+        wrap.appendChild(card);
+    });
+
+    messagesDiv.appendChild(wrap);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+// ── Messages ─────────────────────────────────────────────────────────────────
+const messagesDiv = document.getElementById("messages");
+let partialBubble = null;
+
+function clearEmpty() {
+    const e = document.getElementById("empty-state");
+    if (e) e.remove();
+}
+
+function addBubble(role, text) {
+    clearEmpty();
+    hideTyping();
+    hideQuerying();
+    if (partialBubble) { partialBubble.remove(); partialBubble = null; }
+    const b = document.createElement("div");
+    b.className = "bubble " + role;
+    b.textContent = text;
+    messagesDiv.appendChild(b);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function setPartial(text) {
+    clearEmpty();
+    hideTyping();
+    if (!partialBubble) {
+        partialBubble = document.createElement("div");
+        partialBubble.className = "bubble partial";
+        messagesDiv.appendChild(partialBubble);
+    }
+    partialBubble.textContent = text;
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function addLeadBanner(name, phone) {
+    clearEmpty();
+    if (partialBubble) { partialBubble.remove(); partialBubble = null; }
+    const b = document.createElement("div");
+    b.className = "lead-banner";
+    b.textContent = `✅ Lead saved — ${name} (${phone}) will receive a call within 24 hours.`;
+    messagesDiv.appendChild(b);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+// ── UI WebSocket ──────────────────────────────────────────────────────────────
+const wsBase = (location.protocol === "https:" ? "wss" : "ws") + "://" + location.host;
+const uiWs = new WebSocket(wsBase + "/ui-stream");
+const quickRepliesDiv = document.getElementById("quick-replies");
+
+function clearQuickReplies() {
+    quickRepliesDiv.style.display = "none";
+    quickRepliesDiv.innerHTML = "";
+}
+
+function renderQuickReplies(options) {
+    clearQuickReplies();
+    quickRepliesDiv.style.display = "flex";
+    options.forEach(opt => {
+        const btn = document.createElement("button");
+        btn.className = "qr-chip";
+        btn.textContent = opt;
+        btn.onclick = () => { clearQuickReplies(); sendQuickReply(opt); };
+        quickRepliesDiv.appendChild(btn);
+    });
+}
+
+function sendQuickReply(text) {
+    showTyping();
+    ensureChatWs(() => chatWs.send(JSON.stringify({ event: "chat", text })));
+}
+
+let lastAssistantText = "";
+uiWs.onmessage = (e) => {
+    const d = JSON.parse(e.data);
+    if (d.event === "partial")    setPartial(d.text);
+    if (d.event === "transcript") {
+        clearQuickReplies();
+        addBubble(d.role, d.text);
+        if (d.role === "user") {
+            showTyping(); // show spinner while Maya processes
+        }
+        if (d.role === "assistant") {
+            lastAssistantText = d.text;
+            // If ElevenLabs hasn't delivered audio within 3 s, fall back to browser TTS
+            if (elevenLabsWorking) {
+                setTimeout(() => {
+                    if (lastAssistantText === d.text && audioQueue.length === 0 && !isPlaying) {
+                        console.warn("ElevenLabs silent — switching to browser TTS");
+                        elevenLabsWorking = false;
+                        speakFallback(d.text);
+                    }
+                }, 3000);
+            } else {
+                speakFallback(d.text);
+            }
+        }
+    }
+    if (d.event === "querying")        showQuerying();
+    if (d.event === "property_cards")  renderPropertyCards(d.cards);
+    if (d.event === "suggestions")     renderQuickReplies(d.options);
+    if (d.event === "lead_saved")      addLeadBanner(d.name, d.phone);
+    if (d.event === "filters")         renderFilters(d.data);
+};
+
+// ── Chat WebSocket ────────────────────────────────────────────────────────────
+let chatWs = null;
+let audioCtx = null;
+
+function getCtx() {
+    if (!audioCtx || audioCtx.state === "closed")
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    return audioCtx;
+}
+
+let typingBubble = null;
+
+function showTyping() {
+    if (typingBubble) return;
+    clearEmpty();
+    typingBubble = document.createElement("div");
+    typingBubble.className = "bubble typing";
+    typingBubble.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+    messagesDiv.appendChild(typingBubble);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+function hideTyping() {
+    if (typingBubble) { typingBubble.remove(); typingBubble = null; }
+}
+
+// Override addBubble to also hide typing
+const _origAddBubble = addBubble;
+// (we patch inline below)
+
+function ensureChatWs(onOpen) {
+    if (chatWs && chatWs.readyState === WebSocket.OPEN) { if (onOpen) onOpen(); return; }
+    chatWs = new WebSocket(wsBase + "/browser-stream");
+    chatWs.onopen = () => {
+        chatWs.send(JSON.stringify({ event: "start" }));
+        showTyping(); // show dots while Maya prepares greeting
+        if (onOpen) setTimeout(onOpen, 150);
+    };
+    chatWs.onmessage = (e) => { const d = JSON.parse(e.data); if (d.event === "audio") playAudio(d.data); };
+    chatWs.onclose = () => { chatWs = null; };
+}
+
+// Auto-connect on load — Maya greets the user immediately
+window.addEventListener("DOMContentLoaded", () => {
+    ensureChatWs();
+});
+
+async function sendText() {
+    const input = document.getElementById("chat-text-input");
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = "";
+    const ctx = getCtx();
+    if (ctx.state === "suspended") await ctx.resume();
+    clearQuickReplies();
+    // Don't addBubble here — the server broadcasts it back via uiWs transcript event
+    ensureChatWs(() => chatWs.send(JSON.stringify({ event: "chat", text })));
+}
+
+// ── Voice ─────────────────────────────────────────────────────────────────────
+let micStream = null, recorder = null, isRecording = false;
+
+async function toggleVoice() {
+    const btn  = document.getElementById("voice-btn");
+    const lbl  = document.getElementById("voice-label");
+    const viz  = document.getElementById("mic-viz");
+
+    if (isRecording) {
+        isRecording = false;
+        btn.classList.remove("recording");
+        lbl.textContent = "Tap to speak";
+        viz.classList.remove("active");
+        if (recorder)   recorder.stop();
+        if (micStream)  micStream.getTracks().forEach(t => t.stop());
+        if (chatWs && chatWs.readyState === WebSocket.OPEN) {
+            chatWs.send(JSON.stringify({ event: "mic_stop" }));
+        }
+    } else {
+        try {
+            const ctx = getCtx();
+            if (ctx.state === "suspended") await ctx.resume();
+            micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            isRecording = true;
+            btn.classList.add("recording");
+            lbl.textContent = "Listening…";
+            viz.classList.add("active");
+            ensureChatWs(() => {
+                chatWs.send(JSON.stringify({ event: "mic_start" }));
+                recorder = new MediaRecorder(micStream, { mimeType: "audio/webm" });
+                recorder.ondataavailable = (e) => {
+                    if (e.data.size > 0 && chatWs && chatWs.readyState === WebSocket.OPEN)
+                        chatWs.send(e.data);
+                };
+                recorder.start(250);
+            });
+        } catch {
+            alert("Microphone access denied. Please allow mic access and try again.");
+        }
+    }
+}
+
+// ── Audio playback (ElevenLabs PCM) ──────────────────────────────────────────
+let audioQueue = [], isPlaying = false, nextTime = 0;
+let elevenLabsWorking = true; // flips false on first error
+
+function playAudio(base64) {
+    if (!elevenLabsWorking) return;
+    try {
+        const bin = atob(base64);
+        const buf = new ArrayBuffer(bin.length);
+        const view = new DataView(buf);
+        for (let i = 0; i < bin.length; i++) view.setUint8(i, bin.charCodeAt(i));
+        const pcm = new Int16Array(buf);
+        const f32 = new Float32Array(pcm.length);
+        for (let i = 0; i < pcm.length; i++) f32[i] = pcm[i] / 32768.0;
+        audioQueue.push(f32);
+        tick();
+    } catch(e) { console.warn("ElevenLabs audio error", e); }
+}
+
+async function tick() {
+    if (isPlaying || !audioQueue.length) return;
+    const ctx = getCtx();
+    if (ctx.state === "suspended") await ctx.resume();
+    isPlaying = true;
+    const data = audioQueue.shift();
+    const ab = ctx.createBuffer(1, data.length, 16000);
+    ab.copyToChannel(data, 0);
+    const src = ctx.createBufferSource();
+    src.buffer = ab; src.connect(ctx.destination);
+    src.onended = () => { isPlaying = false; tick(); };
+    const start = Math.max(ctx.currentTime, nextTime);
+    nextTime = start + ab.duration;
+    src.start(start);
+}
+
+// ── Browser TTS fallback (fires when ElevenLabs is down) ─────────────────────
+function speakFallback(text) {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.rate  = 1.05;
+    utt.pitch = 1.0;
+    // prefer a female voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const female = voices.find(v => /female|woman|girl|samantha|karen|victoria|moira/i.test(v.name));
+    if (female) utt.voice = female;
+    window.speechSynthesis.speak(utt);
+}
+</script>
+</body>
+</html>

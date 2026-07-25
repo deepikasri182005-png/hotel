@@ -1,0 +1,52 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	welcome(welcome)
+	capture_name(capture_name)
+	capture_property_type(capture_property_type)
+	capture_location(capture_location)
+	capture_budget(capture_budget)
+	capture_bhk_or_size(capture_bhk_or_size)
+	capture_refinement(capture_refinement)
+	property_search(property_search)
+	lead_complete(lead_complete)
+	faq(faq)
+	compare(compare)
+	book_visit(book_visit)
+	human_handoff(human_handoff)
+	intent_classifier(intent_classifier)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> intent_classifier;
+	intent_classifier -.-> book_visit;
+	intent_classifier -.-> capture_bhk_or_size;
+	intent_classifier -.-> capture_budget;
+	intent_classifier -.-> capture_location;
+	intent_classifier -.-> capture_name;
+	intent_classifier -.-> capture_property_type;
+	intent_classifier -.-> capture_refinement;
+	intent_classifier -.-> compare;
+	intent_classifier -.-> faq;
+	intent_classifier -.-> human_handoff;
+	intent_classifier -.-> lead_complete;
+	intent_classifier -.-> property_search;
+	intent_classifier -.-> welcome;
+	book_visit --> __end__;
+	capture_bhk_or_size --> __end__;
+	capture_budget --> __end__;
+	capture_location --> __end__;
+	capture_name --> __end__;
+	capture_property_type --> __end__;
+	capture_refinement --> __end__;
+	compare --> __end__;
+	faq --> __end__;
+	human_handoff --> __end__;
+	lead_complete --> __end__;
+	property_search --> __end__;
+	welcome --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

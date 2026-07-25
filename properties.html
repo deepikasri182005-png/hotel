@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PropBot — Live Listings</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#09090f; --s1:rgba(255,255,255,.045); --s2:rgba(255,255,255,.08);
+  --border:rgba(255,255,255,.08); --border2:rgba(255,255,255,.13);
+  --accent:#7c3aed; --accent-soft:rgba(124,58,237,.18);
+  --accent2:#06b6d4; --green:#10b981; --amber:#f59e0b; --red:#ef4444;
+  --text:#f0f0f5; --muted:#6b7280; --muted2:#9ca3af;
+  --sidebar:260px; --card-min:260px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html{scroll-behavior:smooth;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px;}
+
+/* ── Top nav ── */
+.nav{
+  height:54px;display:flex;align-items:center;gap:14px;
+  padding:0 24px;border-bottom:1px solid var(--border);
+  background:rgba(9,9,15,.9);backdrop-filter:blur(16px);
+  position:sticky;top:0;z-index:200;flex-shrink:0;
+}
+.logo{font-weight:700;font-size:.95rem;display:flex;align-items:center;gap:8px;white-space:nowrap;}
+.logo-ring{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#4c1d95,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:.85rem;}
+.nav-search{
+  flex:1;max-width:340px;margin-left:8px;
+  display:flex;align-items:center;gap:8px;
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:10px;padding:0 12px;
+}
+.nav-search svg{opacity:.4;flex-shrink:0;}
+.nav-search input{background:none;border:none;outline:none;color:var(--text);font-size:.82rem;font-family:inherit;width:100%;padding:8px 0;}
+.nav-search input::placeholder{color:var(--muted);}
+.db-pill{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--muted2);background:var(--s1);border:1px solid var(--border);border-radius:20px;padding:4px 10px;white-space:nowrap;}
+.db-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.nav-btn{padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:var(--s1);color:var(--muted2);font-size:.75rem;text-decoration:none;white-space:nowrap;transition:all .15s;font-family:inherit;cursor:pointer;}
+.nav-btn:hover{background:var(--s2);color:var(--text);}
+
+/* ── Body layout ── */
+.body{display:flex;flex:1;min-height:0;}
+
+/* ── Sidebar ── */
+.sidebar{
+  width:var(--sidebar);flex-shrink:0;
+  border-right:1px solid var(--border);
+  overflow-y:auto;padding:20px 16px;
+  display:flex;flex-direction:column;gap:20px;
+  position:sticky;top:54px;height:calc(100vh - 54px);
+}
+.filter-section h4{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:10px;}
+.clear-all{background:none;border:none;color:rgba(239,68,68,.7);font-size:.68rem;cursor:pointer;font-family:inherit;margin-left:auto;}
+.clear-all:hover{color:var(--red);}
+.section-header{display:flex;align-items:center;margin-bottom:10px;}
+
+/* pills row */
+.pill-row{display:flex;flex-wrap:wrap;gap:5px;}
+.fpill{padding:5px 11px;border-radius:20px;border:1px solid var(--border);background:var(--s1);color:var(--muted2);font-size:.72rem;cursor:pointer;transition:all .15s;font-family:inherit;line-height:1;}
+.fpill:hover{border-color:var(--border2);color:var(--text);}
+.fpill.on{background:var(--accent-soft);border-color:rgba(124,58,237,.5);color:#c4b5fd;}
+
+/* range inputs */
+.range-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.range-input{position:relative;}
+.range-input label{display:block;font-size:.6rem;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em;}
+.range-input input{width:100%;padding:6px 8px;border-radius:7px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-size:.78rem;font-family:inherit;outline:none;transition:border-color .15s;}
+.range-input input:focus{border-color:rgba(124,58,237,.5);}
+
+/* toggle row */
+.toggle-row{display:flex;flex-direction:column;gap:5px;}
+.ftoggle{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;border:1px solid transparent;cursor:pointer;transition:all .15s;}
+.ftoggle:hover{background:var(--s1);}
+.ftoggle.on{background:var(--accent-soft);border-color:rgba(124,58,237,.3);}
+.ftoggle input{display:none;}
+.tog-box{width:14px;height:14px;border-radius:4px;border:1px solid var(--border2);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.ftoggle.on .tog-box{background:var(--accent);border-color:var(--accent);}
+.ftoggle.on .tog-box::after{content:'✓';font-size:.6rem;color:white;}
+.tog-label{font-size:.73rem;color:var(--muted2);}
+.ftoggle.on .tog-label{color:var(--text);}
+
+/* sort */
+.sort-select{width:100%;padding:7px 9px;border-radius:8px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-size:.78rem;font-family:inherit;outline:none;cursor:pointer;}
+
+/* ── Main ── */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;}
+
+/* results bar */
+.results-bar{
+  padding:14px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  background:rgba(9,9,15,.6);backdrop-filter:blur(8px);
+  position:sticky;top:54px;z-index:100;
+}
+.result-count{font-size:.82rem;font-weight:600;}
+.result-count span{color:var(--accent2);}
+.active-tags{display:flex;flex-wrap:wrap;gap:5px;flex:1;}
+.atag{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;background:var(--accent-soft);border:1px solid rgba(124,58,237,.3);font-size:.68rem;color:#c4b5fd;}
+.atag-x{cursor:pointer;opacity:.7;font-size:.7rem;line-height:1;}
+.atag-x:hover{opacity:1;color:var(--red);}
+.view-toggle{margin-left:auto;display:flex;gap:3px;}
+.vbtn{width:30px;height:30px;border-radius:7px;border:1px solid var(--border);background:var(--s1);cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.5;transition:all .15s;}
+.vbtn.on{background:var(--accent-soft);border-color:rgba(124,58,237,.4);opacity:1;}
+
+/* ── Grid ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--card-min),1fr));gap:16px;padding:20px;}
+.grid.list-view{grid-template-columns:1fr;}
+
+/* ── Card ── */
+.card{
+  border-radius:14px;border:1px solid var(--border);background:var(--s1);
+  overflow:hidden;transition:border-color .2s,transform .2s,box-shadow .2s;
+  cursor:default;display:flex;flex-direction:column;
+}
+.card:hover{border-color:rgba(124,58,237,.35);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.3);}
+.card.editing{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);}
+.card.list-view{flex-direction:row;}
+
+.card-banner{height:106px;display:flex;align-items:center;justify-content:center;font-size:2rem;position:relative;flex-shrink:0;}
+.card.list-view .card-banner{width:120px;height:auto;}
+.banner-apt{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#4c1d95 100%);}
+.banner-villa{background:linear-gradient(135deg,#431407 0%,#7c2d12 50%,#92400e 100%);}
+
+.bdg{position:absolute;font-size:.57rem;font-weight:600;letter-spacing:.04em;padding:3px 8px;border-radius:5px;backdrop-filter:blur(6px);}
+.bdg-tl{top:9px;left:9px;background:rgba(0,0,0,.5);}
+.bdg-tr{top:9px;right:9px;}
+.rtm{background:rgba(16,185,129,.25);color:#6ee7b7;border:1px solid rgba(16,185,129,.3);}
+.uc{background:rgba(245,158,11,.25);color:#fcd34d;border:1px solid rgba(245,158,11,.3);}
+
+.card-body{padding:13px 14px 10px;flex:1;display:flex;flex-direction:column;}
+.cloc{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;display:flex;align-items:center;gap:4px;}
+.ctitle{font-size:.9rem;font-weight:600;margin-bottom:3px;line-height:1.3;}
+.cprice{font-size:.95rem;color:#a78bfa;font-weight:700;margin-bottom:4px;}
+.cmeta{font-size:.7rem;color:var(--muted2);margin-bottom:8px;display:flex;flex-wrap:wrap;gap:6px;}
+.cmeta-tag{display:inline-flex;align-items:center;gap:3px;}
+
+/* amenity icons strip */
+.amenities{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;flex:1;}
+.am-chip{font-size:.62rem;padding:2px 7px;border-radius:8px;background:rgba(255,255,255,.06);color:var(--muted2);border:1px solid rgba(255,255,255,.07);}
+.am-chip.highlight{background:rgba(16,185,129,.12);color:#6ee7b7;border-color:rgba(16,185,129,.2);}
+
+.card-footer{display:flex;gap:6px;align-items:center;}
+.edit-btn{
+  flex:1;padding:7px;border-radius:8px;border:1px solid rgba(124,58,237,.3);
+  background:var(--accent-soft);color:#c4b5fd;font-size:.72rem;font-weight:500;
+  cursor:pointer;font-family:inherit;transition:all .15s;
+}
+.edit-btn:hover{background:rgba(124,58,237,.28);}
+
+/* ── Edit panel ── */
+.edit-panel{
+  display:none;padding:16px;border-top:1px solid var(--border);
+  background:rgba(124,58,237,.04);
+}
+.edit-panel.open{display:block;}
+.ep-section{font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:rgba(167,139,250,.8);margin:12px 0 7px;}
+.ep-section:first-child{margin-top:0;}
+.ef{margin-bottom:8px;}
+.ef label{display:block;font-size:.61rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;}
+.ef input,.ef textarea,.ef select{
+  width:100%;padding:7px 9px;border-radius:7px;border:1px solid var(--border);
+  background:rgba(255,255,255,.06);color:var(--text);font-size:.8rem;
+  font-family:inherit;outline:none;transition:border-color .15s;
+}
+.ef input:focus,.ef textarea:focus,.ef select:focus{border-color:rgba(124,58,237,.6);}
+.ef textarea{resize:vertical;min-height:52px;}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.frow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
+
+.bool-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;}
+.btog{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:7px;border:1px solid var(--border);background:var(--s1);cursor:pointer;transition:all .15s;user-select:none;}
+.btog.on{border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.1);}
+.btog-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.2);flex-shrink:0;transition:background .15s;}
+.btog.on .btog-dot{background:var(--green);}
+.btog-lbl{font-size:.68rem;color:var(--muted2);}
+.btog.on .btog-lbl{color:var(--text);}
+
+.ep-actions{display:flex;gap:7px;margin-top:12px;}
+.ep-actions button{flex:1;padding:8px;border-radius:8px;font-size:.75rem;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s;}
+.save-btn{border:1px solid rgba(16,185,129,.35);background:rgba(16,185,129,.12);color:#6ee7b7;}
+.save-btn:hover{background:rgba(16,185,129,.22);}
+.cancel-btn{border:1px solid var(--border);background:var(--s1);color:var(--muted2);}
+.cancel-btn:hover{background:var(--s2);}
+
+/* ── Empty state ── */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;color:var(--muted);text-align:center;gap:10px;}
+.empty svg{opacity:.15;}
+.empty h3{font-size:1rem;font-weight:500;color:var(--muted2);}
+.empty p{font-size:.8rem;}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);padding:10px 20px;border-radius:10px;font-size:.8rem;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:999;white-space:nowrap;}
+.toast.success{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.35);color:#6ee7b7;}
+.toast.error{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.35);color:#fca5a5;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── Responsive ── */
+@media(max-width:900px){
+  .sidebar{display:none;}
+  .grid{padding:14px;}
+}
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<div class="nav">
+  <div class="logo">
+    <div class="logo-ring">🏠</div>
+    PropBot AI
+  </div>
+  <div class="nav-search">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input id="search-input" placeholder="Search by location..." oninput="applyFilters()">
+  </div>
+  <div class="db-pill"><div class="db-dot" id="db-dot" style="background:var(--muted)"></div><span id="db-lbl">Connecting…</span></div>
+  <a class="nav-btn" href="/">💬 Chat with Maya</a>
+</div>
+
+<div class="body">
+
+  <!-- Sidebar filters -->
+  <aside class="sidebar">
+
+    <div class="filter-section">
+      <div class="section-header">
+        <h4>Property Type</h4>
+        <button class="clear-all" onclick="clearAll()">Clear all</button>
+      </div>
+      <div class="pill-row">
+        <button class="fpill on" data-filter="type" data-val="all"    onclick="setPill(this,'type')">All</button>
+        <button class="fpill"    data-filter="type" data-val="apartment" onclick="setPill(this,'type')">Apartment</button>
+        <button class="fpill"    data-filter="type" data-val="villa"  onclick="setPill(this,'type')">Villa</button>
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <h4>BHK</h4>
+      <div class="pill-row">
+        <button class="fpill on" data-filter="bhk" data-val="all" onclick="togglePill(this,'bhk')">Any</button>
+        <button class="fpill"    data-filter="bhk" data-val="1"   onclick="togglePill(this,'bhk')">1</button>
+        <button class="fpill"    data-filter="bhk" data-val="2"   onclick="togglePill(this,'bhk')">2</button>
+        <button class="fpill"    data-filter="bhk" data-val="3"   onclick="togglePill(this,'bhk')">3</button>
+        <button class="fpill"    data-filter="bhk" data-val="4"   onclick="togglePill(this,'bhk')">4</button>
+        <button class="fpill"    data-filter="bhk" data-val="5"   onclick="togglePill(this,'bhk')">5+</button>
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <h4>Budget</h4>
+      <div class="range-row">
+        <div class="range-input"><label>Min (₹ L)</label><input type="number" id="f-min-price" placeholder="0" oninput="applyFilters()"></div>
+        <div class="range-input"><label>Max (₹ L)</label><input type="number" id="f-max-price" placeholder="Any" oninput="applyFilters()"></div>
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <h4>Min Area (sqft)</h4>
+      <div class="range-input"><input type="number" id="f-min-sqft" placeholder="e.g. 1200" oninput="applyFilters()"></div>
+    </div>
+
+    <div class="filter-section">
+      <h4>Facing</h4>
+      <div class="pill-row">
+        <button class="fpill on" data-filter="facing" data-val="all"   onclick="setPill(this,'facing')">Any</button>
+        <button class="fpill"    data-filter="facing" data-val="north" onclick="setPill(this,'facing')">North</button>
+        <button class="fpill"    data-filter="facing" data-val="south" onclick="setPill(this,'facing')">South</button>
+        <button class="fpill"    data-filter="facing" data-val="east"  onclick="setPill(this,'facing')">East</button>
+        <button class="fpill"    data-filter="facing" data-val="west"  onclick="setPill(this,'facing')">West</button>
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <h4>Possession</h4>
+      <div class="pill-row">
+        <button class="fpill on" data-filter="rtm" data-val="all"   onclick="setPill(this,'rtm')">Any</button>
+        <button class="fpill"    data-filter="rtm" data-val="ready" onclick="setPill(this,'rtm')">Ready to Move</button>
+        <button class="fpill"    data-filter="rtm" data-val="uc"    onclick="setPill(this,'rtm')">Under Construction</button>
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <h4>Amenities</h4>
+      <div class="toggle-row" id="amenity-toggles">
+        <!-- injected -->
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <h4>Sort By</h4>
+      <select class="sort-select" id="sort-select" onchange="applyFilters()">
+        <option value="price-asc">Price: Low → High</option>
+        <option value="price-desc">Price: High → Low</option>
+        <option value="sqft-desc">Largest First</option>
+        <option value="sqft-asc">Smallest First</option>
+        <option value="bhk-asc">BHK: Low → High</option>
+        <option value="bhk-desc">BHK: High → Low</option>
+      </select>
+    </div>
+
+  </aside>
+
+  <!-- Main content -->
+  <div class="main">
+    <div class="results-bar">
+      <div class="result-count" id="result-count">Loading…</div>
+      <div class="active-tags" id="active-tags"></div>
+      <div class="view-toggle">
+        <button class="vbtn on" id="vbtn-grid" onclick="setView('grid')" title="Grid">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+        </button>
+        <button class="vbtn" id="vbtn-list" onclick="setView('list')" title="List">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let allProps = [];
+let viewMode = 'grid';
+
+const AMENITY_DEFS = [
+  {key:'has_lift',         label:'Lift'},
+  {key:'has_kids_pool',    label:'Kids Pool'},
+  {key:'has_adult_pool',   label:'Adult Pool'},
+  {key:'has_gym',          label:'Gym'},
+  {key:'has_play_area',    label:'Play Area'},
+  {key:'has_clubhouse',    label:'Clubhouse'},
+  {key:'is_pet_friendly',  label:'Pet Friendly'},
+  {key:'is_vastu',         label:'Vastu'},
+  {key:'has_security',     label:'Security'},
+  {key:'has_power_backup', label:'Power Backup'},
+  {key:'has_parking',      label:'Parking'},
+];
+
+const ICON = {apartment:'🏢', villa:'🏡'};
+
+function fmt(n) {
+  if(n >= 10000000) return '₹' + (n/10000000).toFixed(2).replace(/\.?0+$/,'') + ' Cr';
+  if(n >= 100000)   return '₹' + Math.round(n/100000) + ' L';
+  return '₹' + n.toLocaleString('en-IN');
+}
+function cap(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : ''; }
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast '+type+' show';
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── Load ──────────────────────────────────────────────────────────────────────
+async function load() {
+  try {
+    const r = await fetch('/api/properties');
+    allProps = await r.json();
+    document.getElementById('db-dot').style.cssText = 'background:var(--green);box-shadow:0 0 6px var(--green)';
+    document.getElementById('db-lbl').textContent = `MongoDB · ${allProps.length} properties`;
+    buildAmenityToggles();
+    applyFilters();
+  } catch(e) {
+    document.getElementById('db-lbl').textContent = 'DB error';
+    document.getElementById('db-dot').style.background = 'var(--red)';
+  }
+}
+
+function buildAmenityToggles() {
+  const wrap = document.getElementById('amenity-toggles');
+  wrap.innerHTML = AMENITY_DEFS.map(a => `
+    <label class="ftoggle" id="tog-${a.key}" onclick="toggleAmenity(this,'${a.key}')">
+      <input type="checkbox"/>
+      <div class="tog-box"></div>
+      <span class="tog-label">${a.label}</span>
+    </label>
+  `).join('');
+}
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+function getFilters() {
+  return {
+    search:   document.getElementById('search-input').value.trim().toLowerCase(),
+    type:     document.querySelector('.fpill.on[data-filter="type"]')?.dataset.val || 'all',
+    bhk:      [...document.querySelectorAll('.fpill.on[data-filter="bhk"]')].map(e=>e.dataset.val),
+    facing:   document.querySelector('.fpill.on[data-filter="facing"]')?.dataset.val || 'all',
+    rtm:      document.querySelector('.fpill.on[data-filter="rtm"]')?.dataset.val || 'all',
+    minPrice: parseFloat(document.getElementById('f-min-price').value) * 100000 || 0,
+    maxPrice: parseFloat(document.getElementById('f-max-price').value) * 100000 || Infinity,
+    minSqft:  parseInt(document.getElementById('f-min-sqft').value) || 0,
+    amenities:[...document.querySelectorAll('.ftoggle.on')].map(e => e.id.replace('tog-','')),
+    sort:     document.getElementById('sort-select').value,
+  };
+}
+
+function applyFilters() {
+  const f = getFilters();
+  let props = allProps.filter(p => {
+    if(f.search && !p.location.toLowerCase().includes(f.search) && !p.description.toLowerCase().includes(f.search)) return false;
+    if(f.type !== 'all' && p.property_type !== f.type) return false;
+    if(!f.bhk.includes('all') && f.bhk.length > 0 && !f.bhk.includes(String(p.bhk))) return false;
+    if(f.facing !== 'all' && p.facing !== f.facing) return false;
+    if(f.rtm === 'ready' && !p.is_ready_to_move) return false;
+    if(f.rtm === 'uc'    &&  p.is_ready_to_move) return false;
+    if(p.price < f.minPrice || p.price > f.maxPrice) return false;
+    if(p.sqft < f.minSqft) return false;
+    for(const a of f.amenities) {
+      if(a === 'has_parking' && !p.has_parking) return false;
+      else if(!p[a]) return false;
+    }
+    return true;
+  });
+
+  // Sort
+  props.sort((a,b) => {
+    if(f.sort==='price-asc')  return a.price - b.price;
+    if(f.sort==='price-desc') return b.price - a.price;
+    if(f.sort==='sqft-desc')  return b.sqft - a.sqft;
+    if(f.sort==='sqft-asc')   return a.sqft - b.sqft;
+    if(f.sort==='bhk-asc')    return a.bhk - b.bhk;
+    if(f.sort==='bhk-desc')   return b.bhk - a.bhk;
+    return 0;
+  });
+
+  renderResults(props, f);
+  renderActiveTags(f);
+}
+
+function renderResults(props, f) {
+  const cnt = document.getElementById('result-count');
+  cnt.innerHTML = `<span>${props.length}</span> of ${allProps.length} properties`;
+
+  const grid = document.getElementById('grid');
+  grid.className = 'grid' + (viewMode==='list' ? ' list-view' : '');
+
+  if(!props.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <h3>No properties match</h3>
+      <p>Try adjusting your filters</p>
+    </div>`;
+    return;
+  }
+  grid.innerHTML = '';
+  props.forEach(p => grid.appendChild(makeCard(p, f)));
+}
+
+function renderActiveTags(f) {
+  const wrap = document.getElementById('active-tags');
+  const tags = [];
+  if(f.search)            tags.push({label:`"${f.search}"`,     clear:()=>{document.getElementById('search-input').value='';applyFilters();}});
+  if(f.type!=='all')      tags.push({label:cap(f.type),          clear:()=>{setPill(document.querySelector('.fpill[data-filter="type"][data-val="all"]'),'type');}});
+  if(!f.bhk.includes('all') && f.bhk.length) tags.push({label:f.bhk.join(',')+' BHK', clear:()=>{document.querySelectorAll('.fpill[data-filter="bhk"]').forEach(e=>{e.classList.remove('on')});document.querySelector('.fpill[data-filter="bhk"][data-val="all"]').classList.add('on');applyFilters();}});
+  if(f.facing!=='all')    tags.push({label:cap(f.facing)+'-facing', clear:()=>{setPill(document.querySelector('.fpill[data-filter="facing"][data-val="all"]'),'facing');}});
+  if(f.rtm==='ready')     tags.push({label:'Ready to Move',      clear:()=>{setPill(document.querySelector('.fpill[data-filter="rtm"][data-val="all"]'),'rtm');}});
+  if(f.rtm==='uc')        tags.push({label:'Under Construction', clear:()=>{setPill(document.querySelector('.fpill[data-filter="rtm"][data-val="all"]'),'rtm');}});
+  if(f.minPrice>0)        tags.push({label:`Min ${fmt(f.minPrice)}`,  clear:()=>{document.getElementById('f-min-price').value='';applyFilters();}});
+  if(f.maxPrice<Infinity) tags.push({label:`Max ${fmt(f.maxPrice)}`,  clear:()=>{document.getElementById('f-max-price').value='';applyFilters();}});
+  if(f.minSqft>0)         tags.push({label:`≥${f.minSqft} sqft`, clear:()=>{document.getElementById('f-min-sqft').value='';applyFilters();}});
+  f.amenities.forEach(a => {
+    const def = AMENITY_DEFS.find(d=>d.key===a);
+    if(def) tags.push({label:def.label, clear:()=>{const el=document.getElementById('tog-'+a);if(el){el.classList.remove('on');applyFilters();}}});
+  });
+
+  wrap.innerHTML = tags.map((t,i)=>`<span class="atag">${t.label}<span class="atag-x" onclick="clearTag(${i})">✕</span></span>`).join('');
+  wrap._tags = tags;
+}
+
+function clearTag(i) {
+  const wrap = document.getElementById('active-tags');
+  wrap._tags[i].clear();
+}
+
+// ── Pill helpers ──────────────────────────────────────────────────────────────
+function setPill(el, group) {
+  document.querySelectorAll(`.fpill[data-filter="${group}"]`).forEach(e=>e.classList.remove('on'));
+  el.classList.add('on');
+  applyFilters();
+}
+
+function togglePill(el, group) {
+  if(el.dataset.val === 'all') {
+    document.querySelectorAll(`.fpill[data-filter="${group}"]`).forEach(e=>e.classList.remove('on'));
+    el.classList.add('on');
+  } else {
+    document.querySelector(`.fpill[data-filter="${group}"][data-val="all"]`).classList.remove('on');
+    el.classList.toggle('on');
+    if(!document.querySelector(`.fpill.on[data-filter="${group}"]`)) {
+      document.querySelector(`.fpill[data-filter="${group}"][data-val="all"]`).classList.add('on');
+    }
+  }
+  applyFilters();
+}
+
+function toggleAmenity(el) { el.classList.toggle('on'); applyFilters(); }
+
+function clearAll() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('f-min-price').value = '';
+  document.getElementById('f-max-price').value = '';
+  document.getElementById('f-min-sqft').value = '';
+  ['type','bhk','facing','rtm'].forEach(g => {
+    document.querySelectorAll(`.fpill[data-filter="${g}"]`).forEach(e=>e.classList.remove('on'));
+    document.querySelector(`.fpill[data-filter="${g}"][data-val="all"]`).classList.add('on');
+  });
+  document.querySelectorAll('.ftoggle').forEach(e=>e.classList.remove('on'));
+  applyFilters();
+}
+
+// ── View toggle ───────────────────────────────────────────────────────────────
+function setView(mode) {
+  viewMode = mode;
+  document.getElementById('vbtn-grid').classList.toggle('on', mode==='grid');
+  document.getElementById('vbtn-list').classList.toggle('on', mode==='list');
+  applyFilters();
+}
+
+// ── Card ──────────────────────────────────────────────────────────────────────
+function makeCard(p, f={}) {
+  const type  = (p.property_type||'apartment').toLowerCase();
+  const isRTM = !!p.is_ready_to_move;
+  const activeAmenities = f.amenities || [];
+
+  const chips = AMENITY_DEFS
+    .filter(a => a.key === 'has_parking' ? p.has_parking > 0 : p[a.key])
+    .map(a => {
+      const hi = activeAmenities.includes(a.key);
+      const lbl = a.key==='has_parking' ? `Parking ×${p.has_parking}` : a.label;
+      return `<span class="am-chip${hi?' highlight':''}">${lbl}</span>`;
+    }).join('');
+
+  const card = document.createElement('div');
+  card.className = 'card' + (viewMode==='list' ? ' list-view' : '');
+  card.dataset.id = p.property_id;
+
+  card.innerHTML = `
+    <div class="card-banner banner-${type==='villa'?'villa':'apt'}">
+      <span>${ICON[type]||'🏠'}</span>
+      <span class="bdg bdg-tl">${p.bhk}BHK ${cap(type)}</span>
+      <span class="bdg bdg-tr ${isRTM?'rtm':'uc'}">${isRTM?'Ready':'UC'}</span>
+    </div>
+    <div class="card-body">
+      <div class="cloc">📍 ${p.location}</div>
+      <div class="ctitle">${p.bhk}BHK ${cap(type)}</div>
+      <div class="cprice">${fmt(p.price)}</div>
+      <div class="cmeta">
+        <span class="cmeta-tag">📐 ${p.sqft} sqft</span>
+        <span class="cmeta-tag">🧭 ${cap(p.facing)}</span>
+        ${p.floor!=null ? `<span class="cmeta-tag">🏢 Fl ${p.floor}/${p.total_floors}</span>` : ''}
+      </div>
+      <div class="amenities">${chips||'<span class="am-chip" style="opacity:.4">Basic amenities</span>'}</div>
+      <div class="card-footer">
+        <button class="edit-btn" onclick="openEdit('${p.property_id}')">✏️ Edit Live</button>
+      </div>
+    </div>
+    <div class="edit-panel" id="ep-${p.property_id}">
+      <div class="ep-section">Basic Info</div>
+      <div class="frow">
+        <div class="ef"><label>Price (₹)</label><input type="number" id="ep-price-${p.property_id}" value="${p.price}"/></div>
+        <div class="ef"><label>BHK</label>
+          <select id="ep-bhk-${p.property_id}">${[1,2,3,4,5].map(n=>`<option ${p.bhk==n?'selected':''}>${n}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div class="frow">
+        <div class="ef"><label>Sqft</label><input type="number" id="ep-sqft-${p.property_id}" value="${p.sqft}"/></div>
+        <div class="ef"><label>Location</label><input type="text" id="ep-loc-${p.property_id}" value="${p.location}"/></div>
+      </div>
+      <div class="frow3">
+        <div class="ef"><label>Type</label>
+          <select id="ep-type-${p.property_id}">
+            <option value="apartment" ${type==='apartment'?'selected':''}>Apartment</option>
+            <option value="villa"     ${type==='villa'?'selected':''}>Villa</option>
+          </select>
+        </div>
+        <div class="ef"><label>Facing</label>
+          <select id="ep-facing-${p.property_id}">
+            ${['north','south','east','west'].map(f=>`<option value="${f}" ${p.facing===f?'selected':''}>${cap(f)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="ef"><label>Status</label>
+          <select id="ep-rtm-${p.property_id}">
+            <option value="true"  ${isRTM?'selected':''}>Ready</option>
+            <option value="false" ${!isRTM?'selected':''}>Under Const.</option>
+          </select>
+        </div>
+      </div>
+      <div class="ep-section">Amenities</div>
+      <div class="bool-grid">
+        ${AMENITY_DEFS.map(a => {
+          const on = a.key==='has_parking' ? p.has_parking>0 : !!p[a.key];
+          return `<div class="btog${on?' on':''}" id="bt-${a.key}-${p.property_id}" onclick="this.classList.toggle('on')">
+            <div class="btog-dot"></div><span class="btog-lbl">${a.label}</span>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="ef"><label>Parking slots</label><input type="number" id="ep-parking-${p.property_id}" value="${p.has_parking||0}" min="0"/></div>
+      <div class="ep-actions">
+        <button class="save-btn" onclick="saveCard('${p.property_id}')">✅ Save</button>
+        <button class="cancel-btn" onclick="closeEdit('${p.property_id}')">Cancel</button>
+      </div>
+    </div>
+  `;
+  return card;
+}
+
+function openEdit(id) {
+  document.getElementById('ep-'+id).classList.add('open');
+  document.querySelector(`[data-id="${id}"]`).classList.add('editing');
+}
+function closeEdit(id) {
+  document.getElementById('ep-'+id).classList.remove('open');
+  document.querySelector(`[data-id="${id}"]`).classList.remove('editing');
+}
+
+// ── Save ──────────────────────────────────────────────────────────────────────
+async function saveCard(id) {
+  const g = sel => document.getElementById(sel+'-'+id)?.value;
+  const boolOn = key => document.getElementById(`bt-${key}-${id}`)?.classList.contains('on') ?? false;
+
+  const payload = {
+    price:           parseInt(g('ep-price'),10),
+    bhk:             parseInt(g('ep-bhk'),10),
+    sqft:            parseInt(g('ep-sqft'),10),
+    location:        g('ep-loc').trim(),
+    property_type:   g('ep-type'),
+    facing:          g('ep-facing'),
+    is_ready_to_move: g('ep-rtm') === 'true',
+    has_lift:        boolOn('has_lift'),
+    has_kids_pool:   boolOn('has_kids_pool'),
+    has_adult_pool:  boolOn('has_adult_pool'),
+    has_gym:         boolOn('has_gym'),
+    has_play_area:   boolOn('has_play_area'),
+    has_clubhouse:   boolOn('has_clubhouse'),
+    is_pet_friendly: boolOn('is_pet_friendly'),
+    is_vastu:        boolOn('is_vastu'),
+    has_security:    boolOn('has_security'),
+    has_power_backup:boolOn('has_power_backup'),
+    has_parking:     parseInt(document.getElementById('ep-parking-'+id)?.value)||0,
+  };
+
+  try {
+    const r = await fetch('/api/properties/'+id, {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+    });
+    if(!r.ok) throw new Error(await r.text());
+    const updated = await r.json();
+    const idx = allProps.findIndex(p=>p.property_id===id);
+    if(idx>=0) allProps[idx] = {...allProps[idx], ...updated};
+    toast(`✅ Saved — ask Maya about this ${updated.bhk}BHK in ${updated.location}`);
+    applyFilters();
+  } catch(e) {
+    toast('❌ '+e.message, 'error');
+  }
+}
+
+load();
+</script>
+</body>
+</html>
